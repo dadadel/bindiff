@@ -2,10 +2,13 @@
 
 '''
 @author: Adel Daouzli
+
+Adapted for Python3 by Mario Orlandi (2021)
 '''
 
 import os
 import sys
+import time
 
 class CompareFiles():
     '''Comparing two binary files'''
@@ -25,7 +28,7 @@ class CompareFiles():
         '''offset where files start to differ'''
         self.diff_list = []
         '''list of diffs made of tuples: (offset, hex(byte1), hex(byte2))'''
-        
+
         self.file1 = file1
         self.file2 = file2
 
@@ -57,14 +60,21 @@ class CompareFiles():
             buffer2 = f2.read(self._buffer_size)
             if len(buffer1) == 0 or len(buffer2) == 0:
                 loop = False
-            for e in range(len(zip(buffer1, buffer2))):
-                if buffer1[e] != buffer2[e]:
+            # for e in range(len(zip(buffer1, buffer2))):
+            #     if buffer1[e] != buffer2[e]:
+            #         if first == False:
+            #             first = True
+            #         result = False
+            #         self.diff_list.append((hex(offset),
+            #                                hex(ord(buffer1[e])),
+            #                                hex(ord(buffer2[e]))))
+            # Adapted to Python3
+            for byte1, byte2 in zip(buffer1, buffer2):
+                if byte1 != byte2:
                     if first == False:
                         first = True
                     result = False
-                    self.diff_list.append((hex(offset),
-                                           hex(ord(buffer1[e])),
-                                           hex(ord(buffer2[e]))))
+                    self.diff_list.append((offset, byte1, byte2))
 
                 offset += 1
                 if first == False:
@@ -85,6 +95,32 @@ def help_msg(cmd):
     print ("Usage: " + cmd + " [-l] file1 file2")
     print ("option -l will list all differences with offsets.")
 
+
+def ascii_display(e):
+    if e < 32:
+        text = "%3d" % e
+    else:
+        text = "'%s'" % chr(e)
+    return text
+
+
+def compare_files(f1, f2, ls):
+    c = CompareFiles(f1, f2)
+    result = c.compare()
+    print("Result of comparison: " + c.message)
+    print("File 1 length: ", os.stat(f1).st_size)
+    print("File 2 length: ", os.stat(f2).st_size)
+    print("Num. differences: ", len(c.diff_list))
+    if not result and c.message == 'content':
+        print("offset differs: " + c.offset)
+        if ls:
+            print ("List of differences:")
+            for o, e1, e2 in c.diff_list:
+                print ("offset 0x%08x: 0x%02x != 0x%02x (%s != %s)" % (
+                    o, e1, e2, ascii_display(e1), ascii_display(e2),
+                ))
+
+
 if __name__ == '__main__':
 
     if len(sys.argv) > 2 and len(sys.argv) < 5:
@@ -100,15 +136,11 @@ if __name__ == '__main__':
             ls = False
             f1 = sys.argv[1]
             f2 = sys.argv[2]
-        c = CompareFiles(f1, f2)
-        result = c.compare()
-        print("Result of comparison: " + c.message)
-        if not result and c.message == 'content':
-            print("offset differs: " + c.offset)
-            if ls:
-                print ("List of differences:")
-                for o, e1, e2 in c.diff_list:
-                    print ("offset %s: %s != %s" % (o, e1, e2))
+
+        t0 = time.time()
+        compare_files(f1, f2, ls)
+        t1 = time.time()
+        print('Elapsed time: ', time.strftime("%H:%M:%S", time.gmtime(t1 - t0)))
     else:
         help_msg(os.path.basename(sys.argv[0]))
-    
+
